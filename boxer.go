@@ -44,9 +44,9 @@ type Encryptor struct {
 // invalid stream.
 //
 // Neither nonce or key are modified.
-func NewEncryptor(w io.Writer, nonce *[24]byte, key *[32]byte) *Encryptor {
+func NewEncryptor(w io.Writer, nonce *[16]byte, key *[32]byte) *Encryptor {
 	var n [24]byte
-	copy(n[:16], nonce[:])
+	copy(n[:], nonce[:])
 
 	var k [32]byte
 	copy(k[:], key[:])
@@ -149,9 +149,9 @@ type Decryptor struct {
 // values originally passed to NewEncryptor.
 //
 // Neither nonce or key are modified.
-func NewDecryptor(r io.Reader, nonce *[24]byte, key *[32]byte) *Decryptor {
+func NewDecryptor(r io.Reader, nonce *[16]byte, key *[32]byte) *Decryptor {
 	var n [24]byte
-	copy(n[:16], nonce[:])
+	copy(n[:], nonce[:])
 
 	var k [32]byte
 	copy(k[:], key[:])
