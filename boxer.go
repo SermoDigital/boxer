@@ -4,7 +4,6 @@ package boxer
 
 import (
 	"errors"
-	"fmt"
 	"io"
 
 	"golang.org/x/crypto/nacl/secretbox"
@@ -229,9 +228,6 @@ func (d *Decryptor) fill() (err error) {
 	}
 
 	m, ok := secretbox.Open(d.out[:0], d.in[:d.eb], d.nonce, d.key)
-	if !ok {
-		fmt.Println("not ok")
-	}
 	if !ok {
 		return ErrInvalidData
 	}
