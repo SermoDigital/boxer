@@ -4,6 +4,7 @@ package boxer
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	"golang.org/x/crypto/nacl/secretbox"
@@ -16,14 +17,17 @@ var (
 
 const (
 	// chunkSize is the maximum chunk size for reading and writing.
-	chunkSize = 16384
+	chunkSize = 65536 //16384
 
 	// offset is the number of bytes used to advise the length of the
 	// chunk. It should be large enough to advise the entirety of chunkSize.
-	offset = 2
+	// Keep this in size with the number of bytes in chunk.
+	offset = 4
 
 	tag = secretbox.Overhead
 )
+
+type chunk uint32
 
 // Encryptor is an io.WriteCloser. Writes to an Encryptor are encrypted
 // and written to w.
@@ -86,6 +90,8 @@ func (e *Encryptor) flush() error {
 	enc := secretbox.Seal(e.out[offset:offset], e.in[:e.n], e.nonce, e.key)
 	e.out[0] = byte(len(enc))
 	e.out[1] = byte(len(enc) >> 8)
+	e.out[2] = byte(len(enc) >> 16)
+	e.out[3] = byte(len(enc) >> 24)
 	_, e.err = e.w.Write(e.out[:offset+len(enc)])
 	e.n = 0
 	incrCounter(e.nonce)
@@ -141,7 +147,7 @@ type Decryptor struct {
 	in    [offset + tag + chunkSize]byte
 	out   [chunkSize]byte
 	err   error
-	next  uint16
+	next  chunk
 	last  bool
 }
 
@@ -164,21 +170,20 @@ func NewDecryptor(r io.Reader, nonce *[16]byte, key *[32]byte) *Decryptor {
 
 // Read implements io.Reader.
 func (d *Decryptor) Read(p []byte) (n int, err error) {
-	if d.err != nil {
+	if d.err != nil || len(p) == 0 {
 		return 0, d.err
 	}
+	var m int
 	for n < len(p) {
 		if d.rp >= d.eb {
 			d.err = d.fill()
 			if d.err != nil {
-				if d.err == io.EOF {
-					return n, nil
-				}
 				return n, d.err
 			}
 		}
-		n += copy(p[n:], d.out[d.rp:d.eb])
-		d.rp += n
+		m = copy(p[n:], d.out[d.rp:d.eb])
+		d.rp += m
+		n += m
 	}
 	return n, nil
 }
@@ -194,9 +199,11 @@ func (d *Decryptor) fill() (err error) {
 	}
 
 	d.rp = 0
-	d.next = uint16(d.in[d.eb-offset]) | uint16(d.in[d.eb-1])<<8
+	d.next = chunk(d.in[d.eb-offset]) | chunk(d.in[d.eb-offset+1])<<8 |
+		chunk(d.in[d.eb-offset+2])<<16 | chunk(d.in[d.eb-offset+3])<<24
 
-	// d.eb == offset only on first read.
+	// d.eb == offset only on first read because d.next == 0, so d.next +
+	// offset = offset
 	if d.eb == offset {
 		return d.fill()
 	}
@@ -222,6 +229,9 @@ func (d *Decryptor) fill() (err error) {
 	}
 
 	m, ok := secretbox.Open(d.out[:0], d.in[:d.eb], d.nonce, d.key)
+	if !ok {
+		fmt.Println("not ok")
+	}
 	if !ok {
 		return ErrInvalidData
 	}
