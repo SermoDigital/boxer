@@ -65,7 +65,7 @@ type Encryptor struct {
 // NewEncryptor returns a new Encryptor. Writes to the returned Encryptor
 // are encrypted and written to w. The size parameter dictates the maximum
 // chunk size. It should be a positive integer in the range [0, 1 << 32 - 1].
-// Writes will always be chunk size +
+// Writes will always be chunk size + Overhead.
 //
 // All writes will not be flushed until Close is called. Not closing an
 // Encryptor will rsult in an invalid stream.
