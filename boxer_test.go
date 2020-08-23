@@ -21,9 +21,6 @@ func init() {
 	if err != nil {
 		data = []byte("hello, world!")
 	}
-	if err != nil {
-		log.Fatalln(err)
-	}
 }
 
 func testCrypt(t *testing.T, e *Encryptor, r io.Reader, data []byte) {
